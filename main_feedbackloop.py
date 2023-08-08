@@ -14,7 +14,7 @@ import re
 from helpers import makedir
 import model
 import push
-import prune
+
 import train_and_test as tnt
 import save
 from log import create_logger
@@ -23,7 +23,6 @@ from preprocess import mean, std, preprocess_input_function
 # book keeping namings and code
 from settings import base_architecture, img_size, prototype_shape, num_classes, \
                      prototype_activation_function, add_on_layers_type, experiment_run
-import copy
 
 # load the data
 from settings import train_dir, test_dir, train_push_dir, \
@@ -84,26 +83,12 @@ test_loader = data_loaders['test']
 train_push_loader = data_loaders['push']
 
 log('training set size: {}'.format(len(train_loader.dataset)))
-log('push set size: {}'.format(len(test_loader.dataset)))
-log('test set size: {}'.format(len(train_push_loader.dataset)))
+log('test set size: {}'.format(len(test_loader.dataset)))
+log('push set size: {}'.format(len(train_push_loader.dataset)))
 log('batch size: {0}'.format(train_batch_size))
 
 
 
-
-# load models
-
-# load_model_path = './saved_models/resnet34/001/20push0.8641.pth' 
-# ppnet = model.construct_PPNet(base_architecture=base_architecture,
-#                             pretrained=True, img_size=img_size,
-#                             prototype_shape=prototype_shape,
-#                             num_classes=num_classes,
-#                             prototype_activation_function=prototype_activation_function,
-#                             add_on_layers_type=add_on_layers_type)
-# ppnet = torch.load(load_model_path)
-# ppnet = ppnet.cuda()
-# ppnet_multi = torch.nn.DataParallel(ppnet)
-# # ppnet_rl_multi.train()
 
 
 # Reward model
@@ -111,7 +96,7 @@ input_size_1 = (1,7,7)
 input_size_2 = (3,224,224)
 
 
-load_model_path_rm = './Reward_model/trained_models/weights_reward.h5' 
+load_model_path_rm = './Reward_model/trained_models/weights_reward_01.h5' 
 reward_model = RewardModel(input_size_1,input_size_2)
 reward_model.load_state_dict(torch.load(load_model_path_rm))
 reward_model.to(device)
@@ -169,7 +154,7 @@ for epoch in range(num_train_epochs):
     accu_test,_,_ = tnt.test(model=ppnet_multi, dataloader=test_loader,
                     class_specific=class_specific, log=log)
     test_accuracy_values.append(accu_test)
-    save.save_model_w_condition(model=ppnet, model_dir=model_dir, model_name=str(epoch) + 'nopush', accu=accu,
+    save.save_model_w_condition(model=ppnet, model_dir=model_dir, model_name=str(epoch) + 'nopush', accu=accu_test,
                                 target_accu=0.80, log=log)
 
     if epoch >= push_start and epoch in push_epochs:

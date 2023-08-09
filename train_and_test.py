@@ -321,12 +321,13 @@ def _train_or_test_feedbackloop(model, reward_model, dataloader, optimizer=None,
             
             
             optimizer.zero_grad()
-
+          
+            #################### STEP 1: BACKWARD GENERAL LOSS ####################
             # General loss backward
             loss.backward()
 
-            log("Multiply grads..")
-            
+            # log("Multiply grads..")
+            #################### STEP 2: SCALE GRADIENTS IN THE CONVOLUTIONAL LAYERS WITH BETA ####################
             # Multiply gradients with importance factor beta
             for param in model.module.features.parameters():
                 grads = param.grad
@@ -336,27 +337,24 @@ def _train_or_test_feedbackloop(model, reward_model, dataloader, optimizer=None,
                 grads = param.grad
                 grads = grads * beta
             
-            # grad_features = model.module.features.weight.grad 
-            # multiplied_grad_features = grad_features * beta
-            # multiplied_grad_features.backward()
-            # grad_add_on = model.module.add_on_layers.weight.grad 
-            # multiplied_grad_add_on = grad_add_on * beta
-            # multiplied_grad_add_on.backward()
 
+
+            #################### STEP 3: AFTER MULTIPLY GRADS THE RM LOSS IS ADDED ####################
             # get reward loss
-            log("Get reward loss")
-            start2 = time.time()
+            # log("Get reward loss")
+            # start2 = time.time()
             prototypes = model.module.conv_features(input)
             loss_reward = get_reward(reward_model=reward_model, conv_features=prototypes, input=input)
             loss_reward = loss_reward * (1-beta)
             loss_reward.backward()
-            end2 = time.time()
-            log('\ttime rewards: \t{0}'.format(end2 -  start2))
+            # end2 = time.time()
+            # log('\ttime rewards: \t{0}'.format(end2 -  start2))
 
+            #################### TOTAL LOSS IS CALCULATED ####################
             # total loss
             total_loss = loss + loss_reward
-
-            #################### AFTER MULTIPLY GRADS AND RM LOSS ARE ADDED ####################
+            
+            #################### STEP 4: OPTIMIZE ####################
             optimizer.step()
 
         del input

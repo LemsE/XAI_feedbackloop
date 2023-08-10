@@ -206,22 +206,29 @@ def get_reward(reward_model, conv_features, input):
     batch_size = conv_features.size(0)
     channels = conv_features.size(1)
     loss = 0
-    for i in range(batch_size):
-        input_img = input[i,:]
-        input_img = input_img.unsqueeze(0)
 
-        prototypes = conv_features[i,:]
+    for j in range(channels):
+      prototypes = conv_features[:,j,:]
+      prototypes = prototypes.unsqueeze(1)
+      reward = reward_model(prototypes, input_imgs)
 
-        for j in range(channels):
+    loss += torch.sum((1.0 - reward) ** 2)
+    # for i in range(batch_size):
+    #     input_img = input[i,:]
+    #     input_img = input_img.unsqueeze(0)
 
-            prototype = prototypes[j,:]
-            prototype = prototype.unsqueeze(0)
-            prototype = prototype.unsqueeze(1)
+    #     prototypes = conv_features[i,:]
 
-            reward = reward_model(prototype, input_img)
+    #     for j in range(channels):
 
-        # squared error
-            loss += (1.0 - reward) ** 2
+    #         prototype = prototypes[j,:]
+    #         prototype = prototype.unsqueeze(0)
+    #         prototype = prototype.unsqueeze(1)
+
+    #         reward = reward_model(prototype, input_img)
+
+    #     # squared error
+    #         loss += (1.0 - reward) ** 2
     return loss
 
 

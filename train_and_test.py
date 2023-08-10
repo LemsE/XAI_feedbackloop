@@ -229,7 +229,7 @@ def get_reward(reward_model, conv_features, input):
 
     #     # squared error
     #         loss += (1.0 - reward) ** 2
-    return loss
+    return loss/(channels*batch_size)
 
 
 def _train_or_test_feedbackloop(model, reward_model, dataloader, optimizer=None, class_specific=True, use_l1_mask=True,

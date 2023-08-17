@@ -7,6 +7,7 @@ import torch.utils.data
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import numpy as np
+import pandas as pd
 
 import argparse
 import re
@@ -43,6 +44,13 @@ import sys
 
 sys.path.append('./Reward_model')
 from reward_model import RewardModel
+
+
+# setting all random seeds
+import random
+np.random.seed(42)
+random.seed(42)
+torch.manual_seed(42)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-gpuid', nargs=1, type=str, default='0') # python3 main.py -gpuid=0,1,2,3
@@ -96,10 +104,12 @@ input_size_1 = (1,7,7)
 input_size_2 = (3,224,224)
 
 
-load_model_path_rm = './Reward_model/trained_models/weights_reward_01.h5' 
+load_model_path_rm = './Reward_model/trained_models/weights_reward_CV.h5' 
 reward_model = RewardModel(input_size_1,input_size_2)
 reward_model.load_state_dict(torch.load(load_model_path_rm))
-reward_model.to(device)
+#reward_model.to(device)
+reward_model.cuda()
+#reward_model_multi = torch.nn.DataParallel(reward_model)
 # Freeze reward model
 for param in reward_model.parameters():
     param.requires_grad = False
@@ -130,6 +140,8 @@ lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=joint_lr_ste
 last_layer_optimizer_specs = [{'params': ppnet.last_layer.parameters(), 'lr': last_layer_optimizer_lr}]
 last_layer_optimizer = torch.optim.Adam(last_layer_optimizer_specs)
 
+# log beta
+log('\tbeta: \t{0}'.format(beta))
 
 # train the model
 log('start training')
@@ -137,6 +149,8 @@ log('start training')
 train_accuracy_values = []
 train_loss_values = []
 test_accuracy_values = []
+
+history = pd.DataFrame(columns = ["train_acc", "test_acc", "train_loss"])
 
 for epoch in range(num_train_epochs):
     log('epoch: \t{0}'.format(epoch))
@@ -148,14 +162,17 @@ for epoch in range(num_train_epochs):
     accu_train, total_loss_train = tnt.train_feedbackloop(model=ppnet_multi, reward_model=reward_model,dataloader=train_loader, optimizer=optimizer,
                     class_specific=class_specific, coefs=coefs, log=log, beta = beta)
     lr_scheduler.step()
-    train_accuracy_values.append(accu_train)
-    train_loss_values.append(total_loss_train)
+
+    history.loc[epoch, 'train_acc'] = accu_train
+    history.loc[epoch, 'train_loss'] = total_loss_train.item()
 
     accu_test,_,_ = tnt.test(model=ppnet_multi, dataloader=test_loader,
                     class_specific=class_specific, log=log)
     test_accuracy_values.append(accu_test)
     save.save_model_w_condition(model=ppnet, model_dir=model_dir, model_name=str(epoch) + 'nopush', accu=accu_test,
                                 target_accu=0.80, log=log)
+
+    history.loc[epoch, 'test_acc'] = accu_test
 
     if epoch >= push_start and epoch in push_epochs:
         push.push_prototypes(
@@ -178,7 +195,7 @@ for epoch in range(num_train_epochs):
         
         if prototype_activation_function != 'linear':
             tnt.last_only(model=ppnet_multi, log=log)
-            for i in range(20):
+            for i in range(10):
                 log('iteration: \t{0}'.format(i))
                 _,_,_ = tnt.train(model=ppnet_multi, dataloader=train_loader, optimizer=last_layer_optimizer,
                                 class_specific=class_specific, coefs=coefs, log=log)
@@ -188,16 +205,12 @@ for epoch in range(num_train_epochs):
                                             target_accu=0.80, log=log)
 
    
-
+save.save_model_w_condition(model=ppnet, model_dir=model_dir, model_name=str(epoch) + '_' + str(i) + 'end', accu=accu,
+                                            target_accu=0.0, log=log)
 log('Saving accuracies and losses...')
-train_accuracy_values_arr = np.array(train_accuracy_values)
-train_loss_values_arr = np.array(train_loss_values)
-test_accuracy_values_arr = np.array(test_accuracy_values)
 
+history.to_csv(model_dir+ 'history_{}.csv'.format(beta), sep=',') 
 
-np.savetxt('train_acc.csv', train_accuracy_values_arr, delimiter=',')
-np.savetxt('train_loss.csv', train_loss_values_arr, delimiter=',')
-np.savetxt('test_acc.csv', test_accuracy_values_arr, delimiter=',')
 
 log('Saved!')
 

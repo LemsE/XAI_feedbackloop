@@ -121,9 +121,9 @@ def create_dataloaders(
 
 def main():
     # This will be cleaned up
-    train_dir = '/home/azureuser/cloudfiles/code/Users/elise.lems/Explaining_Prototypes_XAI_loop/data/CUB_200_2011/datasets/cub200_cropped/train_sub10'
-    test_dir = '/home/azureuser/cloudfiles/code/Users/elise.lems/Explaining_Prototypes_XAI_loop/data/CUB_200_2011/datasets/cub200_cropped/test_sub10'
-    # train_dir = './data/CUB_200_2011/datasets/cub200_cropped/train_cropped_augmented/content/data/CUB_200_2011/datasets/cub200_cropped/train_cropped_augmented'
+    train_dir = './data/CUB_200_2011/datasets/cub200_cropped/train_sub10'
+    test_dir = './data/CUB_200_2011/datasets/cub200_cropped/test_sub10'
+
     img_size = 224
     mean = (0.485, 0.456, 0.406)
     std = (0.229, 0.224, 0.225)

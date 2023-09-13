@@ -5,9 +5,9 @@ num_classes = 20
 prototype_activation_function = 'log'
 add_on_layers_type = 'regular'
 
-experiment_run = 'test_pipeline'
+experiment_run = 'beta_01'
 
-data_path = './data/CUB_200_2011/datasets/cub200_cropped/'
+data_path = './data/'
 # train_dir = data_path + 'train_cropped/'
 # train_dir = data_path + 'train_cropped_augmented/'
 # test_dir = data_path + 'test_cropped/'
@@ -37,7 +37,7 @@ coefs = {
     'l1': 1e-4,
 }
 
-num_train_epochs = 15
+num_train_epochs = 25
 num_warm_epochs = 5
 
 push_start = 5
@@ -49,4 +49,4 @@ test_epochs = [i for i in range(num_train_epochs) if i % 2 == 0]
 import numpy as np
 labels_plot = np.arange(0, 20, 1)
 
-beta = 1
+beta = 0.1

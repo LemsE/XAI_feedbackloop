@@ -1,8 +1,16 @@
+# other folders
+data/
+saved_models/
+results_analysis/
+Reward_model/trained_models/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
 
+#package stuff
+conda_reqs.txt
+azureml_py38.yml
 # C extensions
 *.so
 

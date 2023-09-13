@@ -192,6 +192,7 @@ def feedback_loop(model, log=print):
         param.requires_grad = True
     for param in model.module.add_on_layers.parameters():
         param.requires_grad = True
+    model.module.prototype_vectors.requires_grad = True
 
 
 def train_feedbackloop(model, reward_model ,dataloader, optimizer, class_specific=False, coefs=None, log=print, beta=1):
@@ -206,23 +207,31 @@ def get_reward(reward_model, conv_features, input):
     batch_size = conv_features.size(0)
     channels = conv_features.size(1)
     loss = 0
-    for i in range(batch_size):
-        input_img = input[i,:]
-        input_img = input_img.unsqueeze(0)
+    input_imgs = input
 
-        prototypes = conv_features[i,:]
+    for j in range(channels):
+      prototypes = conv_features[:,j,:]
+      prototypes = prototypes.unsqueeze(1)
+      reward = reward_model(prototypes, input_imgs)
 
-        for j in range(channels):
+      loss += torch.sum((1.0 - reward) ** 2)
+    # for i in range(batch_size):
+    #     input_img = input[i,:]
+    #     input_img = input_img.unsqueeze(0)
 
-            prototype = prototypes[j,:]
-            prototype = prototype.unsqueeze(0)
-            prototype = prototype.unsqueeze(1)
+    #     prototypes = conv_features[i,:]
 
-            reward = reward_model(prototype, input_img)
+    #     for j in range(channels):
 
-        # squared error
-            loss += (1.0 - reward) ** 2
-    return loss
+    #         prototype = prototypes[j,:]
+    #         prototype = prototype.unsqueeze(0)
+    #         prototype = prototype.unsqueeze(1)
+
+    #         reward = reward_model(prototype, input_img)
+
+    #     # squared error
+    #         loss += (1.0 - reward) ** 2
+    return loss/(channels*batch_size)
 
 
 def _train_or_test_feedbackloop(model, reward_model, dataloader, optimizer=None, class_specific=True, use_l1_mask=True,
@@ -330,19 +339,21 @@ def _train_or_test_feedbackloop(model, reward_model, dataloader, optimizer=None,
             #################### STEP 2: SCALE GRADIENTS IN THE CONVOLUTIONAL LAYERS WITH BETA ####################
             # Multiply gradients with importance factor beta
             for param in model.module.features.parameters():
-                grads = param.grad
-                grads = grads * beta
-
+                param.grad *= beta
+                # grads = grads * beta
             for param in model.module.add_on_layers.parameters():
-                grads = param.grad
-                grads = grads * beta
-            
+                param.grad *= beta
+                # grads = grads * beta
+            model.module.prototype_vectors.grad  *= beta
+            #grads_p_layer = grads_p_layer * beta
+        
 
 
             #################### STEP 3: AFTER MULTIPLY GRADS THE RM LOSS IS ADDED ####################
             # get reward loss
             # log("Get reward loss")
             # start2 = time.time()
+            
             prototypes = model.module.conv_features(input)
             loss_reward = get_reward(reward_model=reward_model, conv_features=prototypes, input=input)
             loss_reward = loss_reward * (1-beta)
@@ -362,6 +373,7 @@ def _train_or_test_feedbackloop(model, reward_model, dataloader, optimizer=None,
         del output
         del predicted
         del min_distances
+        del prototypes
 
     end = time.time()
     accu = n_correct / n_examples
@@ -379,7 +391,11 @@ def _train_or_test_feedbackloop(model, reward_model, dataloader, optimizer=None,
     with torch.no_grad():
         p_avg_pair_dist = torch.mean(list_of_distances(p, p))
     log('\tp dist pair: \t{0}'.format(p_avg_pair_dist.item()))
+
+    log('\tGeneral loss: \t{0}'.format(loss))
+    log('\tReward loss: \t{0}'.format(loss_reward))
     log('\tTotal loss: \t{0}'.format(total_loss))
+    
 
     
     

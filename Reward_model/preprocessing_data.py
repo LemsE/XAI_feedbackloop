@@ -4,6 +4,19 @@ import random
 import pickle
 
 def create_ranking_sets(rankings):
+   """
+    Splits ranking data into different sets
+    Parameters
+    -----------
+        rankings : DataFrame
+            Dataframe containing all ranking data
+
+    Returns
+    -----------
+        ranking_sets : DataFrame
+            Dataframe containing the ranking data split into question sets
+
+    """
   # Creates sets of 10 columns for every ranking question.
     lst = list(range(121))
     lst = lst[0::10]
@@ -22,6 +35,23 @@ def create_ranking_sets(rankings):
 
 
 def transform_data(data, outliers,idx,n=18):
+    """
+    Transforms the data to correct format with question ID and removes outliers
+    Parameters
+    -----------
+        data : DataFrame
+            Dataframe containing all ranking data
+        outliers : pickle
+            Outlier file containing the participants to be removed per question
+        idx: Int
+            Integer containing the question set id used for removing outliers
+
+    Returns
+    -----------
+        data_ranked : DataFrame
+            Dataframe containing the ranked data in correct format with outliers removed
+
+    """
     column_mapping = {}
     for i, old_name in enumerate(data.columns):
         new_name = str(data.iloc[0,i])[-n:]  
@@ -47,6 +77,21 @@ def transform_data(data, outliers,idx,n=18):
     return data_ranked
 
 def create_ranking_csv(rankings, outliers):
+   """
+    Creates the final ranking dataset.
+    Parameters
+    -----------
+        rankings : DataFrame
+            Dataframe containing all ranking data
+        outliers : pickle
+            Outlier file containing the participants to be removed per question
+
+    Returns
+    -----------
+        data_ranked : DataFrame
+            Dataframe containing the final ranking dataset with outliers removed. Can be used to train the reward model
+
+    """
     ranking_sets = create_ranking_sets(rankings)
  
     final_set =[]
@@ -61,11 +106,15 @@ def create_ranking_csv(rankings, outliers):
     data_ranked = pd.concat(final_set)
   
     print("Final dataframe shape: ", data_ranked.shape)
-    #data_ranked.to_csv('ranking_dataset_outlier_rem.csv', index=True, header=None)
+    data_ranked.to_csv('ranking_dataset_outlier_rem.csv', index=True, header=None)
 
     return data_ranked
 
 def create_train_test():
+  """
+  Creates a train and test split based on participants. Where 10% of the partcipants are split from the data to create a separate test set.
+
+  """
     data = pd.read_csv('data/ranking_dataset_outlier_rem.csv', sep=',', header=None)
     set0 = np.arange(0,70,1)
     set1 = np.arange(730,800,1)
@@ -85,23 +134,23 @@ def create_train_test():
 
 
 def main():
-    # data = pd.read_csv('data/data_csv.csv', sep=',')
-    # print('Shape data before preprocessing: ',data.shape)
-    # meta = data.iloc[:,:14]
-    # rankings = data.iloc[:,14:-1]
-    # print('Meta shape', meta.shape)
-    # print('Rankings shape', rankings.shape)
-    # print("Nan values: ",rankings.isna().sum().sum())
-    # print("Total entries with nans: ", rankings.shape[0] * rankings.shape[1])
+    data = pd.read_csv('data/data_csv.csv', sep=',')
+    print('Shape data before preprocessing: ',data.shape)
+    meta = data.iloc[:,:14]
+    rankings = data.iloc[:,14:-1]
+    print('Meta shape', meta.shape)
+    print('Rankings shape', rankings.shape)
+    print("Nan values: ",rankings.isna().sum().sum())
+    print("Total entries with nans: ", rankings.shape[0] * rankings.shape[1])
 
-    # with open('data/outliers.pkl', 'rb') as fp:
-    #     outliers = pickle.load(fp)
+    with open('data/outliers.pkl', 'rb') as fp:
+        outliers = pickle.load(fp)
         
     
 
-    # final_df = create_ranking_csv(rankings=rankings, outliers=outliers)
+    final_df = create_ranking_csv(rankings=rankings, outliers=outliers)
 
-    # print(final_df.head())
+    print(final_df.head())
 
     create_train_test()
 

@@ -16,12 +16,7 @@ from tqdm import tqdm
 import mlflow
 from sklearn.metrics import top_k_accuracy_score, precision_score, recall_score, f1_score
 import numpy as np
-"""
-Todo:
-- Add logger
-- Add early stopping
-- Add fine tuning
-"""
+
 
 def train_model(
         model : torchvision.models.ResNet, criterion : torch.nn.modules.loss.CrossEntropyLoss, optimizer : torch.optim.AdamW, lr_scheduler: torch.optim.lr_scheduler.CosineAnnealingLR,

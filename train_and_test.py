@@ -128,7 +128,7 @@ def _train_or_test(model, dataloader, optimizer=None, class_specific=True, use_l
     log('\tp dist pair: \t{0}'.format(p_avg_pair_dist.item()))
     
     # if cluster cost < separation cost -> stop training 
-    return accu, cluster_cost, total_separation_cost
+    return accu
 
 
 def train(model, dataloader, optimizer, class_specific=False, coefs=None, log=print):
@@ -203,11 +203,11 @@ def train_feedbackloop(model, reward_model ,dataloader, optimizer, class_specifi
     return _train_or_test_feedbackloop(model=model, reward_model=reward_model, dataloader=dataloader, optimizer=optimizer,
                           class_specific=class_specific, coefs=coefs, log=log, beta=beta)
 
-def get_reward(reward_model, conv_features, input):
+def get_reward(reward_model, conv_features, input_imgs):
     batch_size = conv_features.size(0)
     channels = conv_features.size(1)
     loss = 0
-    input_imgs = input
+    #input_imgs = input
 
     for j in range(channels):
       prototypes = conv_features[:,j,:]
@@ -355,7 +355,8 @@ def _train_or_test_feedbackloop(model, reward_model, dataloader, optimizer=None,
             # start2 = time.time()
             
             prototypes = model.module.conv_features(input)
-            loss_reward = get_reward(reward_model=reward_model, conv_features=prototypes, input=input)
+            prototypes = prototypes.cuda()
+            loss_reward = get_reward(reward_model=reward_model, conv_features=prototypes, input_imgs=input)
             loss_reward = loss_reward * (1-beta)
             loss_reward.backward()
             # end2 = time.time()

@@ -1,19 +1,19 @@
 base_architecture = 'resnet34'
 img_size = 224
-prototype_shape = (140, 128, 1, 1)
+prototype_shape = (200, 128, 1, 1)
 num_classes = 20
 prototype_activation_function = 'log'
 add_on_layers_type = 'regular'
 
-experiment_run = 'beta_01'
+experiment_run = 'beta1_p200'
 
 data_path = './data/'
-# train_dir = data_path + 'train_cropped/'
-# train_dir = data_path + 'train_cropped_augmented/'
-# test_dir = data_path + 'test_cropped/'
-train_dir = data_path + 'train_sub10/'
-test_dir = data_path + 'test_sub10/'
-train_push_dir = data_path + 'train_push10/'
+train_push_dir = data_path + 'push_first20/'
+train_dir = data_path + 'train_first20/'
+test_dir = data_path + 'test_first20/'
+# train_dir = data_path + 'train_sub10/'
+# test_dir = data_path + 'test_sub10/'
+# train_push_dir = data_path + 'train_push10/'
 
 # train_push_dir = data_path + 'train_cropped/'
 train_batch_size = 128
@@ -49,4 +49,4 @@ test_epochs = [i for i in range(num_train_epochs) if i % 2 == 0]
 import numpy as np
 labels_plot = np.arange(0, 20, 1)
 
-beta = 0.1
+beta = 1

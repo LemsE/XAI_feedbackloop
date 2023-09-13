@@ -14,6 +14,7 @@ azureml_py38.yml
 # C extensions
 *.so
 
+results_analysis.py
 # Distribution / packaging
 .Python
 build/

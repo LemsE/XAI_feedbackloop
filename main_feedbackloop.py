@@ -36,7 +36,7 @@ from settings import coefs
 
 # number of training epochs, number of warm epochs, push start epoch, push epochs
 from settings import num_train_epochs, num_warm_epochs, push_start, push_epochs, beta
-from settings import last_layer_optimizer_lr
+from settings import last_layer_optimizer_lr, warm_optimizer_lrs
 from load_data_ppnet import create_dataloaders
 
 # reward model
@@ -45,13 +45,15 @@ import sys
 sys.path.append('./Reward_model')
 from reward_model import RewardModel
 
+seed = 42
 
 # setting all random seeds
 import random
-np.random.seed(42)
-random.seed(42)
-torch.manual_seed(42)
+np.random.seed(seed)
+random.seed(seed)
+torch.manual_seed(seed)
 
+#Argument parser
 parser = argparse.ArgumentParser()
 parser.add_argument('-gpuid', nargs=1, type=str, default='0') # python3 main.py -gpuid=0,1,2,3
 args = parser.parse_args()
@@ -127,7 +129,7 @@ ppnet = ppnet.cuda()
 ppnet_multi = torch.nn.DataParallel(ppnet)
 class_specific = True
 
-
+#AHI-loop specs
 optimizer_specs = \
 [{'params': ppnet.features.parameters(), 'lr': joint_optimizer_lrs['features'], 'weight_decay': 1e-3}, # bias are now also being regularized
  {'params': ppnet.add_on_layers.parameters(), 'lr': joint_optimizer_lrs['add_on_layers'], 'weight_decay': 1e-3},
@@ -136,27 +138,41 @@ optimizer_specs = \
 optimizer = torch.optim.Adam(optimizer_specs)
 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=joint_lr_step_size, gamma=0.1)
 
-
+# Last layer specs
 last_layer_optimizer_specs = [{'params': ppnet.last_layer.parameters(), 'lr': last_layer_optimizer_lr}]
 last_layer_optimizer = torch.optim.Adam(last_layer_optimizer_specs)
 
+
+# Warm optimizer specs
+warm_optimizer_specs = \
+[{'params': ppnet.add_on_layers.parameters(), 'lr': warm_optimizer_lrs['add_on_layers'], 'weight_decay': 1e-3},
+ {'params': ppnet.prototype_vectors, 'lr': warm_optimizer_lrs['prototype_vectors']},
+]
+warm_optimizer = torch.optim.Adam(warm_optimizer_specs) 
+
 # log beta
 log('\tbeta: \t{0}'.format(beta))
-
+log('\t seed: \t{0}'.format(seed))
 # train the model
 log('start training')
 # for plotting
-train_accuracy_values = []
-train_loss_values = []
-test_accuracy_values = []
+
+accu_best = 0.0
 
 history = pd.DataFrame(columns = ["train_acc", "test_acc", "train_loss"])
-
+accu_test0 = tnt.test(model=ppnet_multi, dataloader=test_loader,
+                                class_specific=class_specific, log=log)
+history.loc[0, 'test_acc'] = accu_test0
 for epoch in range(num_train_epochs):
     log('epoch: \t{0}'.format(epoch))
-
     
+    # If you want to train using a warm up period uncomment this following section
 
+    # if epoch < num_warm_epochs:
+    #     tnt.warm_only(model=ppnet_multi, log=log)
+    #     _ = tnt.train(model=ppnet_multi, dataloader=train_loader, optimizer=warm_optimizer,
+    #                   class_specific=class_specific, coefs=coefs, log=log)
+    # else:
     tnt.feedback_loop(model=ppnet_multi, log=log)
 
     accu_train, total_loss_train = tnt.train_feedbackloop(model=ppnet_multi, reward_model=reward_model,dataloader=train_loader, optimizer=optimizer,
@@ -166,13 +182,17 @@ for epoch in range(num_train_epochs):
     history.loc[epoch, 'train_acc'] = accu_train
     history.loc[epoch, 'train_loss'] = total_loss_train.item()
 
-    accu_test,_,_ = tnt.test(model=ppnet_multi, dataloader=test_loader,
+    accu_test = tnt.test(model=ppnet_multi, dataloader=test_loader,
                     class_specific=class_specific, log=log)
-    test_accuracy_values.append(accu_test)
-    save.save_model_w_condition(model=ppnet, model_dir=model_dir, model_name=str(epoch) + 'nopush', accu=accu_test,
-                                target_accu=0.80, log=log)
+    
+    history.loc[epoch+1, 'test_acc'] = accu_test
+    # Saving the best model
+    # if accu_test > accu_best:
+    #     accu_best = accu_test
+    #     save.save_model_w_condition(model=ppnet, model_dir=model_dir, model_name=str(epoch) + 'nopush', accu=accu_best,
+    #                                 target_accu=0.80, log=log)
 
-    history.loc[epoch, 'test_acc'] = accu_test
+    
 
     if epoch >= push_start and epoch in push_epochs:
         push.push_prototypes(
@@ -188,7 +208,7 @@ for epoch in range(num_train_epochs):
             proto_bound_boxes_filename_prefix=proto_bound_boxes_filename_prefix,
             save_prototype_class_identity=True,
             log=log)
-        accu, _, _ = tnt.test(model=ppnet_multi, dataloader=test_loader,
+        accu = tnt.test(model=ppnet_multi, dataloader=test_loader,
                         class_specific=class_specific, log=log)
         save.save_model_w_condition(model=ppnet, model_dir=model_dir, model_name=str(epoch) + 'push', accu=accu,
                                     target_accu=0.80, log=log)
@@ -197,15 +217,16 @@ for epoch in range(num_train_epochs):
             tnt.last_only(model=ppnet_multi, log=log)
             for i in range(10):
                 log('iteration: \t{0}'.format(i))
-                _,_,_ = tnt.train(model=ppnet_multi, dataloader=train_loader, optimizer=last_layer_optimizer,
+                _ = tnt.train(model=ppnet_multi, dataloader=train_loader, optimizer=last_layer_optimizer,
                                 class_specific=class_specific, coefs=coefs, log=log)
-                accu,_,_ = tnt.test(model=ppnet_multi, dataloader=test_loader,
+                accu = tnt.test(model=ppnet_multi, dataloader=test_loader,
                                 class_specific=class_specific, log=log)
                 save.save_model_w_condition(model=ppnet, model_dir=model_dir, model_name=str(epoch) + '_' + str(i) + 'push', accu=accu,
                                             target_accu=0.80, log=log)
 
-   
-save.save_model_w_condition(model=ppnet, model_dir=model_dir, model_name=str(epoch) + '_' + str(i) + 'end', accu=accu,
+accu_test_last = tnt.test(model=ppnet_multi, dataloader=test_loader,
+                                class_specific=class_specific, log=log)   
+save.save_model_w_condition(model=ppnet, model_dir=model_dir, model_name=str(epoch) + '_' + str(i) + 'end', accu=accu_test_last,
                                             target_accu=0.0, log=log)
 log('Saving accuracies and losses...')
 

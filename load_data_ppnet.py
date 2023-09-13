@@ -56,16 +56,20 @@ def create_dataloaders() -> torch.utils.data.DataLoader:
     """ 
     image_datasets = create_imagefolders()
 
+    
+    g = torch.Generator()
+    g.manual_seed(42)
+
     data_loaders = {
     'train': torch.utils.data.DataLoader(
     image_datasets['train'], batch_size=train_batch_size, shuffle=True,
-    num_workers=4, pin_memory=False),
+    num_workers=4, pin_memory=False, generator = g),
     'push': torch.utils.data.DataLoader(
     image_datasets['push'], batch_size=train_push_batch_size, shuffle=False,
-    num_workers=4, pin_memory=False),
+    num_workers=4, pin_memory=False, generator = g),
     'test': torch.utils.data.DataLoader(
     image_datasets['test'], batch_size=test_batch_size, shuffle=False,
-    num_workers=4, pin_memory=False)
+    num_workers=4, pin_memory=False, generator = g)
     }
 
     print('Dataloaders created')

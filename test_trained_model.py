@@ -1,6 +1,3 @@
-import timeit
-import torch
-import model
 from helpers import list_of_distances, make_one_hot
 from tqdm import tqdm
 from load_data_ppnet import create_dataloaders
@@ -110,8 +107,6 @@ def conf_matrix(loaded_model, device,
                 true_labels.extend(labels.tolist())
                 pred_labels.extend(predicted.tolist())
                 logits.extend(output.tolist())
-                # print('Labels: ',labels)
-                # print('Predicted: ', predicted)
 
                 n_correct += torch.sum(predicted == labels.data)
 
